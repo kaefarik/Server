@@ -1,0 +1,34 @@
+@startuml
+actor "Камера" as Cam
+participant "Сервер" as Server
+participant "Двигатель" as Engine
+
+loop Каждые N секунд
+    Cam -> Server: передать изображения
+    activate Server
+    
+    Server -> Server: определить положение солнца
+    note right: Вычислить координаты\nсолнца на изображении
+    
+    Server -> Server: хранить данные
+    note right: Сохранить кадр\nи метаданные
+    
+    Server -> Server: рассчет вектора движения облаков в области вокруг солнца
+    
+    Server -> Server: рассчет времени до перекрытия солнца
+    note right: Прогноз на основе\nвектора движения
+    
+    alt Время < порога
+        Server -> Engine: включить двигатель
+        Engine --> Server: подтверждение
+    else Время > порога и двигатель включен
+        Server -> Engine: выключить двигатель
+        Engine --> Server: подтверждение
+    else Время > порога и двигатель выключен
+        note over Server: Двигатель остается выключенным
+    end
+    
+    deactivate Server
+end
+
+@enduml
