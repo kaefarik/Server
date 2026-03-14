@@ -1,0 +1,53 @@
+@startuml
+entity Cloud {
+    + координата x: int
+    + координата y: int
+    + направление_движения: vector
+    + скорость: float
+}
+
+entity Sun {
+    + координата x: int
+    + координата y: int
+}
+
+entity Camera
+
+entity Снимок {
+    + время: datetime
+}
+
+entity ControlSystem {
+    + run()
+}
+
+
+Cloud --> Camera
+Sun --> Camera
+Camera --> Image
+Image --* ControlSystem
+
+
+entity AEngine {
+    + void start()
+    + void stop()
+}
+
+entity ACmdReceiver {
+  + string receive()
+}
+
+entity FooEngine {
+    + void start()
+    + void stop()
+}
+
+entity FooCmdReceiver {
+    + string receive()
+}
+
+FooEngine --|> AEngine
+FooCmdReceiver --|> ACmdReceiver
+AEngine --* ControlSystem
+ACmdReceiver --* ControlSystem
+@enduml
