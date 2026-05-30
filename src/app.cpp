@@ -3,12 +3,25 @@
 #include <Sendler.h>
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <csignal>
+#include <atomic>
 
 static double now() {
     return static_cast<double>(cv::getTickCount()) / cv::getTickFrequency();
 }
 
+// Флаг остановки — atomic чтобы безопасно читать из обработчика сигнала
+static std::atomic<bool> g_shutdown{false};
+
+static void signalHandler(int) {
+    g_shutdown = true;
+}
+
 int App::run() {
+    // Перехватываем Ctrl+C и kill
+    std::signal(SIGINT,  signalHandler);
+    std::signal(SIGTERM, signalHandler);
+
     sendler->send("stop");
 
     cv::VideoCapture cap(useCamera ? "0" : path);
@@ -22,7 +35,7 @@ int App::run() {
     const int delayMs = static_cast<int>(1000.0 / fps);
 
     std::cout << "FPS: " << fps << "  задержка: " << delayMs << " мс\n"
-              << "ESC — выход\n";
+              << "ESC или Ctrl+C — выход\n";
 
     cv::Mat frame;
     bool engineOn       = false;
@@ -30,9 +43,15 @@ int App::run() {
     const double kAnalysisInterval = 0.133;
 
     for (;;) {
+        // Выход по сигналу
+        if (g_shutdown) {
+            std::cout << "\nПолучен сигнал завершения — останавливаем мотор...\n";
+            break;
+        }
+
         if (!cap.read(frame) || frame.empty()) {
             if (useCamera) break;
-            cap.set(cv::CAP_PROP_POS_FRAMES, 0);  // зациклить файл
+            cap.set(cv::CAP_PROP_POS_FRAMES, 0);
             continue;
         }
 
@@ -63,13 +82,17 @@ int App::run() {
                 cv::rectangle(display, sun, cv::Scalar(0, 0, 255), 3);
         }
 
-        cv::imshow("Tracker", display);
+        cv::imshow("Sun Closure Tracker", display);
 
         if (cv::waitKey(delayMs) == 27) {
-            sendler->send("stop");
+            std::cout << "ESC — выход\n";
             break;
         }
     }
+
+    // Гарантированная остановка мотора при любом выходе
+    std::cout << "Отправляем stop на сервер...\n";
+    sendler->send("stop");
 
     cap.release();
     cv::destroyAllWindows();
